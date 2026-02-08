@@ -18,13 +18,21 @@ logger = logging.getLogger(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__, 
-            template_folder=os.path.join(basedir, 'templates'),
+            template_folder=basedir,
             static_folder=os.path.join(basedir, 'static'))
 
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(app.static_folder,
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+@app.route('/style.css')
+def style_css():
+    return send_from_directory(basedir, 'style.css')
+
+@app.route('/main.js')
+def main_js():
+    return send_from_directory(basedir, 'main.js')
 
 # Use environment variable for Secret Key on Render, fallback for local development
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_12345')

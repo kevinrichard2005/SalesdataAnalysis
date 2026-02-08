@@ -4,7 +4,7 @@
 <div class="auth-wrapper">
     <div class="auth-card">
         <h2>Register</h2>
-        <form method="POST">
+        <form method="POST" action="{{ url_for('register') }}">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" class="form-control" id="username" name="username" required>
