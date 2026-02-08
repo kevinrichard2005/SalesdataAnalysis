@@ -101,9 +101,30 @@ a[aria-expanded="true"] {
     background: var(--white);
     border-bottom: 1px solid #e3e6f0;
     box-shadow: var(--shadow);
+}
+
+.navbar .container-fluid {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+}
+
+#sidebarCollapse {
+    order: 3;
+    /* Always on the right */
+}
+
+.navbar-brand {
+    order: 1;
+    /* Always on the left */
+}
+
+.user-menu {
+    order: 2;
+    /* In the middle or next to brand */
+    margin-left: auto;
+    margin-right: 20px;
 }
 
 .navbar-brand {
@@ -327,18 +348,44 @@ th {
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
     #sidebar {
-        margin-left: -250px;
+        left: auto;
+        right: -250px;
+        /* Hide to the right */
+        margin-left: 0;
     }
 
     #sidebar.active {
+        right: 0;
+        /* Slide in from right */
         margin-left: 0;
     }
 
     #content {
+        margin-left: 0 !important;
+        width: 100%;
+    }
+
+    #sidebar.active+#content {
         margin-left: 0;
     }
 
-    #sidebarCollapse span {
-        display: none;
+    /* Force one card per row */
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    /* Force one chart per row */
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-area {
+        height: 300px;
+        /* Slightly shorter on mobile */
+    }
+
+    /* Navbar layout for mobile */
+    .navbar {
+        flex-direction: row;
     }
 }

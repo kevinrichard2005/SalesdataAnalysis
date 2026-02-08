@@ -23,7 +23,7 @@ app = Flask(__name__,
 
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(app.static_folder,
+    return send_from_directory(basedir,
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/style.css')
