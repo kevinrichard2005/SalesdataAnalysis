@@ -14,24 +14,40 @@ from models import db, User, Sales
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+# Ensure absolute path for better environment compatibility
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+app = Flask(__name__, 
+            template_folder=os.path.join(basedir, 'templates'),
+            static_folder=os.path.join(basedir, 'static'))
 
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
+    return send_from_directory(app.static_folder,
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 # Use environment variable for Secret Key on Render, fallback for local development
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_12345')
 
 # Ensure absolute path for SQLite database to avoid issues on different environments
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'site.db'))
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'site.db'))
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
-app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static', 'uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'csv'}
 
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+# Ensure upload directory exists
+try:
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+except Exception as e:
+    logger.error(f"Failed to create upload folder: {e}")
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"}), 200
 
 db.init_app(app)
 
