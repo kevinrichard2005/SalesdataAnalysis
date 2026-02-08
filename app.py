@@ -1,16 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, send_from_directory
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 import os
 import pandas as pd
 from datetime import datetime
 import io
 import csv
+import logging
 
 from models import db, User, Sales
 
+# Configure logging to see errors in the console/Render logs
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 # Use environment variable for Secret Key on Render, fallback for local development
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_12345')
 
@@ -41,14 +50,14 @@ def allowed_file(filename):
 def home():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    return render_template('login.html')
+    return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-        user = User.query.filter_by(email=email).first()
+        user = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user and user.check_password(password):
             login_user(user)
             return redirect(url_for('dashboard'))
@@ -64,7 +73,7 @@ def register():
         password = request.form.get('password')
         
         # Check if user already exists
-        user = User.query.filter_by(email=email).first()
+        user = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user:
             flash('Email already registered', 'warning')
             return redirect(url_for('register'))
@@ -80,25 +89,36 @@ def register():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    sales_data = Sales.query.filter_by(user_id=current_user.id).all()
-    # Basic data aggregation
-    if not sales_data:
-        flash("No sales data found. Upload a CSV file.", "info")
-        return redirect(url_for('upload'))
+    try:
+        # Use modern SQLAlchemy 2.0 select syntax
+        sales_data = db.session.execute(
+            db.select(Sales).filter_by(user_id=current_user.id)
+        ).scalars().all()
+
+        if not sales_data:
+            flash("No sales data found. Upload a CSV file.", "info")
+            return redirect(url_for('upload'))
+            
+        df = pd.DataFrame([s.to_dict() for s in sales_data])
         
-    df = pd.DataFrame([s.to_dict() for s in sales_data])
-    
-    total_sales = df['total_price'].sum()
-    total_orders = len(df)
-    avg_order_value = df['total_price'].mean() if total_orders > 0 else 0
-    top_product = df.groupby('product')['total_price'].sum().idxmax()
-    
-    return render_template('dashboard.html', 
-                           total_sales=total_sales, 
-                           total_orders=total_orders, 
-                           avg_order_value=avg_order_value, 
-                           top_product=top_product,
-                           sales_data=sales_data)
+        # Ensure correct data types for pandas operations
+        df['total_price'] = pd.to_numeric(df['total_price'], errors='coerce').fillna(0)
+        
+        total_sales = df['total_price'].sum()
+        total_orders = len(df)
+        avg_order_value = df['total_price'].mean() if total_orders > 0 else 0
+        top_product = df.groupby('product')['total_price'].sum().idxmax() if not df.empty else 'N/A'
+        
+        return render_template('dashboard.html', 
+                               total_sales=total_sales, 
+                               total_orders=total_orders, 
+                               avg_order_value=avg_order_value, 
+                               top_product=top_product,
+                               sales_data=sales_data)
+    except Exception as e:
+        logger.error(f"Dashboard Error: {str(e)}")
+        flash(f"An error occurred while loading the dashboard: {str(e)}", "danger")
+        return redirect(url_for('home'))
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
@@ -171,26 +191,36 @@ def upload():
 @app.route('/analytics')
 @login_required
 def analytics():
-    sales_data = Sales.query.filter_by(user_id=current_user.id).all()
-    if not sales_data:
-        flash("No data for analytics. Upload CSV first.", "warning")
-        return redirect(url_for('upload'))
+    try:
+        sales_data = db.session.execute(
+            db.select(Sales).filter_by(user_id=current_user.id)
+        ).scalars().all()
+
+        if not sales_data:
+            flash("No data for analytics. Upload CSV first.", "warning")
+            return redirect(url_for('upload'))
+            
+        df = pd.DataFrame([s.to_dict() for s in sales_data])
         
-    df = pd.DataFrame([s.to_dict() for s in sales_data])
-    
-    # Example Analytics: Sales per Month
-    df['date'] = pd.to_datetime(df['date'])
-    monthly_sales = df.groupby(df['date'].dt.to_period('M'))['total_price'].sum().to_dict()
-    # Convert period index to string
-    monthly_sales = {str(k): v for k, v in monthly_sales.items()}
-    
-    category_sales = df.groupby('category')['total_price'].sum().to_dict()
-    product_performance = df.groupby('product')['total_price'].sum().sort_values(ascending=False).head(5).to_dict()
-    
-    return render_template('analytics.html', 
-                           monthly_sales=monthly_sales, 
-                           category_sales=category_sales, 
-                           product_performance=product_performance)
+        # Example Analytics: Sales per Month
+        df['date'] = pd.to_datetime(df['date'])
+        df['total_price'] = pd.to_numeric(df['total_price'], errors='coerce').fillna(0)
+        
+        monthly_sales = df.groupby(df['date'].dt.to_period('M'))['total_price'].sum().to_dict()
+        # Convert period index to string
+        monthly_sales = {str(k): v for k, v in monthly_sales.items()}
+        
+        category_sales = df.groupby('category')['total_price'].sum().to_dict()
+        product_performance = df.groupby('product')['total_price'].sum().sort_values(ascending=False).head(5).to_dict()
+        
+        return render_template('analytics.html', 
+                               monthly_sales=monthly_sales, 
+                               category_sales=category_sales, 
+                               product_performance=product_performance)
+    except Exception as e:
+        logger.error(f"Analytics Error: {str(e)}")
+        flash(f"An error occurred while loading analytics: {str(e)}", "danger")
+        return redirect(url_for('dashboard'))
 
 @app.route('/reports')
 @login_required
