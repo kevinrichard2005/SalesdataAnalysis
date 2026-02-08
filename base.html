@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Analytics Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="sidebar-header">
+                <h3>SalesData</h3>
+            </div>
+            <ul class="list-unstyled components">
+                <li class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                    <a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a>
+                </li>
+                <li class="{{ 'active' if request.endpoint == 'analytics' else '' }}">
+                    <a href="{{ url_for('analytics') }}"><i class="fas fa-chart-line"></i> Analytics</a>
+                </li>
+                <li class="{{ 'active' if request.endpoint == 'upload' else '' }}">
+                    <a href="{{ url_for('upload') }}"><i class="fas fa-upload"></i> Upload Data</a>
+                </li>
+                <li class="{{ 'active' if request.endpoint == 'reports' else '' }}">
+                    <a href="{{ url_for('reports') }}"><i class="fas fa-file-alt"></i> Reports</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Page Content -->
+        <div id="content">
+            <nav class="navbar">
+                <div class="container-fluid">
+                    <button type="button" id="sidebarCollapse" class="btn btn-info">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <span class="navbar-brand mb-0 h1">Sales Analytics</span>
+                    <div class="user-menu">
+                        {% if current_user.is_authenticated %}
+                        <span>Welcome, {{ current_user.username }}</span>
+                        <a href="{{ url_for('logout') }}" class="btn btn-logout">Logout</a>
+                        {% else %}
+                        <a href="{{ url_for('login') }}">Login</a>
+                        <a href="{{ url_for('register') }}">Register</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+
+            <div class="main-content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+        <div class="overlay"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="header">
+        <h1>Dashboard</h1>
+        <p>Overview of your sales performance</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-row">
+        <div class="card stat-card blue">
+            <div class="card-content">
+                <p class="card-title">Total Sales</p>
+                <h2 class="card-value">${{ "%.2f"|format(total_sales) }}</h2>
+            </div>
+            <div class="card-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+        </div>
+        <div class="card stat-card green">
+            <div class="card-content">
+                <p class="card-title">Total Orders</p>
+                <h2 class="card-value">{{ total_orders }}</h2>
+            </div>
+            <div class="card-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+        </div>
+        <div class="card stat-card orange">
+            <div class="card-content">
+                <p class="card-title">Avg Order Value</p>
+                <h2 class="card-value">${{ "%.2f"|format(avg_order_value) }}</h2>
+            </div>
+            <div class="card-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+        </div>
+        <div class="card stat-card purple">
+            <div class="card-content">
+                <p class="card-title">Best Product</p>
+                <h2 class="card-value">{{ top_product or 'N/A' }}</h2>
+            </div>
+            <div class="card-icon">
+                <i class="fas fa-trophy"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+        <div class="chart-container large">
+            <h3>Sales Trend</h3>
+            <div id="salesTrendPlot" class="chart-area"></div>
+        </div>
+        <div class="chart-container small">
+            <h3>Sales by Category</h3>
+            <div id="categoryPlot" class="chart-area"></div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="table-container">
+        <h3>Recent Transactions</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sale in sales_data[-10:]|reverse %}
+                <tr>
+                    <td>{{ sale.date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ sale.category }}</td>
+                    <td>{{ sale.product }}</td>
+                    <td>{{ sale.quantity }}</td>
+                    <td>${{ "%.2f"|format(sale.unit_price) }}</td>
+                    <td>${{ "%.2f"|format(sale.total_price) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('/api/dashboard-data')
+            .then(response => response.json())
+            .then(data => {
+                initDashboardPlotly(data);
+            })
+            .catch(error => console.error('Error fetching dashboard data:', error));
+    });
+
+    function initDashboardPlotly(data) {
+        if (!data.sales_trend || Object.keys(data.sales_trend).length === 0) return;
+
+        // Sales Trend Plot
+        const trendData = [{
+            x: Object.keys(data.sales_trend),
+            y: Object.values(data.sales_trend),
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { shape: 'spline', color: '#4e73df' },
+            fill: 'tozeroy',
+            fillcolor: 'rgba(78, 115, 223, 0.1)'
+        }];
+
+        const trendLayout = {
+            margin: { t: 20, r: 20, l: 40, b: 40 },
+            autosize: true,
+            xaxis: { showgrid: false },
+            yaxis: { tickprefix: '$' }
+        };
+
+        Plotly.newPlot('salesTrendPlot', trendData, trendLayout, { responsive: true, displayModeBar: false });
+
+        // Category Plot
+        const catData = [{
+            values: Object.values(data.category_sales),
+            labels: Object.keys(data.category_sales),
+            type: 'pie',
+            hole: .4,
+            marker: {
+                colors: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
+            }
+        }];
+
+        const catLayout = {
+            margin: { t: 20, r: 20, l: 20, b: 20 },
+            autosize: true,
+            showlegend: true,
+            legend: { orientation: "h", y: -0.2 }
+        };
+
+        Plotly.newPlot('categoryPlot', catData, catLayout, { responsive: true, displayModeBar: false });
+    }
+</script>
+{% endblock %}

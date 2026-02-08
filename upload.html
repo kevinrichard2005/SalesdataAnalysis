@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Upload Sales Data</h2>
+    <div class="card p-4">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="csvFile">Select CSV File</label>
+                <input type="file" class="form-control-file" id="csvFile" name="file" accept=".csv" required>
+                <small class="form-text text-muted">Please upload a valid CSV file with columns: Date, Category,
+                    Product, Quantity, Unit Price, Total Price.</small>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Upload and Process</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
