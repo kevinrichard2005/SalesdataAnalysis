@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, send_from_directory
-import jinja2
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 import os
@@ -8,72 +7,37 @@ from datetime import datetime
 import io
 import csv
 import logging
+import jinja2
 
 from models import db, User, Sales
 
-# Configure logging to see errors in the console/Render logs
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Ensure absolute path for better environment compatibility
-basedir = os.path.abspath(os.path.dirname(__file__)) # Keep this line as it defines 'basedir'
+# Base directory
+basedir = os.path.abspath(os.path.dirname(__file__))
 
-app = Flask(__name__)
+# Initialize Flask with templates in root and static in 'static'
+app = Flask(__name__, 
+            template_folder='.',
+            static_folder='static')
 
-# Fallback mechanism to ensure templates are found even if misconfigured in Git
-app.jinja_loader = jinja2.ChoiceLoader([
-    jinja2.FileSystemLoader(os.path.join(basedir, 'templates')),
-    jinja2.FileSystemLoader(basedir),
-])
+# Force Jinja to look in the root folder for templates
+app.jinja_loader = jinja2.FileSystemLoader(basedir)
 
-# LOGGING FOR DIAGNOSTICS (Check Render Logs)
-logger.info(f"--- RENDER DIAGNOSTICS ---")
-logger.info(f"Current Working Directory: {os.getcwd()}")
-logger.info(f"Base Directory: {basedir}")
-try:
-    logger.info(f"Files in root: {os.listdir(basedir)}")
-    if os.path.exists(os.path.join(basedir, 'templates')):
-        logger.info(f"Files in templates/: {os.listdir(os.path.join(basedir, 'templates'))}")
-    else:
-        logger.warning("WARNING: 'templates' folder not found in root.")
-except Exception as e:
-    logger.error(f"Error during diagnostics: {e}")
-logger.info(f"--- END DIAGNOSTICS ---")
-
-@app.route('/favicon.ico')
-def favicon():
-    fa_path = os.path.join(app.static_folder, 'favicon.ico')
-    if not os.path.exists(fa_path):
-        # Return a 204 No Content if it doesn't exist to avoid 404 in logs
-        return '', 204
-    return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template('base.html'), 404
-
-# Use environment variable for Secret Key on Render, fallback for local development
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_12345')
-
-# Ensure absolute path for SQLite database to avoid issues on different environments
+# App Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key_12345')
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'site.db'))
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-
 app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'csv'}
 
 # Ensure upload directory exists
-try:
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-except Exception as e:
-    logger.error(f"Failed to create upload folder: {e}")
-
-@app.route('/health')
-def health():
-    return jsonify({"status": "healthy"}), 200
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 db.init_app(app)
 
@@ -85,8 +49,11 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/')
 def home():
@@ -118,18 +85,11 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         
-        # Check if email already exists
         user = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user:
             flash('Email already registered', 'warning')
             return redirect(url_for('register'))
         
-        # Check if username already exists
-        user_by_name = db.session.execute(db.select(User).filter_by(username=username)).scalar_one_or_none()
-        if user_by_name:
-            flash('Username already taken', 'warning')
-            return redirect(url_for('register'))
-
         new_user = User(username=username, email=email)
         new_user.set_password(password)
         db.session.add(new_user)
@@ -142,37 +102,20 @@ def register():
 @login_required
 def dashboard():
     try:
-        # Use modern SQLAlchemy 2.0 select syntax
-        sales_data = db.session.execute(
-            db.select(Sales).filter_by(user_id=current_user.id)
-        ).scalars().all()
-
+        sales_data = db.session.execute(db.select(Sales).filter_by(user_id=current_user.id)).scalars().all()
         if not sales_data:
             flash("No sales data found. Upload a CSV file.", "info")
             return redirect(url_for('upload'))
-            
         df = pd.DataFrame([s.to_dict() for s in sales_data])
-        
-        # Ensure correct data types for pandas operations
         df['total_price'] = pd.to_numeric(df['total_price'], errors='coerce').fillna(0)
-        
         total_sales = df['total_price'].sum()
         total_orders = len(df)
         avg_order_value = df['total_price'].mean() if total_orders > 0 else 0
         top_product = df.groupby('product')['total_price'].sum().idxmax() if not df.empty else 'N/A'
-        
-        return render_template('dashboard.html', 
-                               total_sales=total_sales, 
-                               total_orders=total_orders, 
-                               avg_order_value=avg_order_value, 
-                               top_product=top_product,
-                               sales_data=sales_data)
+        return render_template('dashboard.html', total_sales=total_sales, total_orders=total_orders, avg_order_value=avg_order_value, top_product=top_product, sales_data=sales_data)
     except Exception as e:
         logger.error(f"Dashboard Error: {str(e)}")
-        flash(f"An error occurred while loading the dashboard: {str(e)}", "danger")
-        if current_user.is_authenticated:
-            return render_template('base.html') # Fallback to base or show error
-        return redirect(url_for('login'))
+        return redirect(url_for('upload'))
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
@@ -182,119 +125,52 @@ def upload():
             flash('No file part', 'danger')
             return redirect(request.url)
         file = request.files['file']
-        if file.filename == '':
-            flash('No selected file', 'danger')
+        if file.filename == '' or not allowed_file(file.filename):
+            flash('Invalid file', 'danger')
             return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+        
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
+        file.save(filepath)
+        
+        try:
+            df = pd.read_csv(filepath)
+            df.columns = df.columns.str.strip()
             
-            try:
-                df = pd.read_csv(filepath)
-                # Strip leading/trailing spaces from column names
-                df.columns = df.columns.str.strip()
-                
-                # Column mapping for flexibility
-                column_mapping = {
-                    'Date': ['Date', 'date', 'order_date', 'Order Date'],
-                    'Category': ['Category', 'category', 'Product Category'],
-                    'Product': ['Product', 'product', 'item', 'Item Name'],
-                    'Quantity': ['Quantity', 'quantity', 'Qty', 'qty'],
-                    'Unit Price': ['Unit Price', 'unit_price', 'Unit_Price', 'price', 'Price'],
-                    'Total Price': ['Total Price', 'total_price', 'Total_Sales', 'total_sales', 'sales', 'Sales', 'Total Sales']
-                }
-
-                parsed_df = pd.DataFrame()
-                for standard_name, aliases in column_mapping.items():
-                    found_col = None
-                    for alias in aliases:
-                        if alias in df.columns:
-                            found_col = alias
-                            break
-                    if found_col:
-                        parsed_df[standard_name] = df[found_col]
-                    else:
-                        flash(f'CSV missing required column: {standard_name} (found columns: {", ".join(df.columns)})', 'danger')
-                        return redirect(request.url)
-
-                # Clear existing data for the current user before adding new data
-                db.session.execute(db.delete(Sales).filter_by(user_id=current_user.id))
-
-                for _, row in parsed_df.iterrows():
-                    try:
-                        # Handle potential date format issues - use dayfirst=True for flexibility
-                        sale_date = pd.to_datetime(row['Date'], dayfirst=True, errors='coerce').date()
-                        if pd.isna(sale_date):
-                            continue
-                        sale = Sales(
-                            date=sale_date,
-                            category=row['Category'],
-                            product=row['Product'],
-                            quantity=int(row['Quantity']),
-                            unit_price=float(row['Unit Price']),
-                            total_price=float(row['Total Price']),
-                            user_id=current_user.id
-                        )
-                        db.session.add(sale)
-                    except Exception as date_err:
-                        # Skip invalid rows or handle error
-                        continue
-                        
-                db.session.commit()
-                flash('File uploaded and processed successfully!', 'success')
-                return redirect(url_for('dashboard'))
-            except Exception as e:
-                db.session.rollback()
-                flash(f'Error processing file: {str(e)}', 'danger')
-                return redirect(request.url)
+            # Simple column mapping
+            col_map = {'Date': 'Date', 'Category': 'Category', 'Product': 'Product', 'Quantity': 'Quantity', 'Unit Price': 'Unit Price', 'Total Price': 'Total Price'}
+            
+            db.session.execute(db.delete(Sales).filter_by(user_id=current_user.id))
+            for _, row in df.iterrows():
+                try:
+                    sale = Sales(
+                        date=pd.to_datetime(row.get('Date', datetime.now()), errors='coerce').date(),
+                        category=row.get('Category', 'Other'),
+                        product=row.get('Product', 'N/A'),
+                        quantity=int(row.get('Quantity', 0)),
+                        unit_price=float(row.get('Unit Price', 0)),
+                        total_price=float(row.get('Total Price', 0)),
+                        user_id=current_user.id
+                    )
+                    db.session.add(sale)
+                except: continue
+            db.session.commit()
+            flash('File uploaded correctly!', 'success')
+            return redirect(url_for('dashboard'))
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'danger')
     return render_template('upload.html')
-
-@app.route('/clear-data')
-@login_required
-def clear_data():
-    try:
-        db.session.execute(db.delete(Sales).filter_by(user_id=current_user.id))
-        db.session.commit()
-        flash('All sales data has been cleared.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error clearing data: {str(e)}', 'danger')
-    return redirect(url_for('upload'))
 
 @app.route('/analytics')
 @login_required
 def analytics():
-    try:
-        sales_data = db.session.execute(
-            db.select(Sales).filter_by(user_id=current_user.id)
-        ).scalars().all()
-
-        if not sales_data:
-            flash("No data for analytics. Upload CSV first.", "warning")
-            return redirect(url_for('upload'))
-            
-        df = pd.DataFrame([s.to_dict() for s in sales_data])
-        
-        # Example Analytics: Sales per Month
-        df['date'] = pd.to_datetime(df['date'])
-        df['total_price'] = pd.to_numeric(df['total_price'], errors='coerce').fillna(0)
-        
-        monthly_sales = df.groupby(df['date'].dt.to_period('M'))['total_price'].sum().to_dict()
-        # Convert period index to string
-        monthly_sales = {str(k): v for k, v in monthly_sales.items()}
-        
-        category_sales = df.groupby('category')['total_price'].sum().to_dict()
-        product_performance = df.groupby('product')['total_price'].sum().sort_values(ascending=False).head(5).to_dict()
-        
-        return render_template('analytics.html', 
-                               monthly_sales=monthly_sales, 
-                               category_sales=category_sales, 
-                               product_performance=product_performance)
-    except Exception as e:
-        logger.error(f"Analytics Error: {str(e)}")
-        flash(f"An error occurred while loading analytics: {str(e)}", "danger")
-        return redirect(url_for('dashboard'))
+    sales_data = db.session.execute(db.select(Sales).filter_by(user_id=current_user.id)).scalars().all()
+    if not sales_data: return redirect(url_for('upload'))
+    df = pd.DataFrame([s.to_dict() for s in sales_data])
+    df['date'] = pd.to_datetime(df['date'])
+    monthly_sales = df.groupby(df['date'].dt.to_period('M'))['total_price'].sum().to_dict()
+    category_sales = df.groupby('category')['total_price'].sum().to_dict()
+    product_perf = df.groupby('product')['total_price'].sum().head(5).to_dict()
+    return render_template('analytics.html', monthly_sales={str(k):v for k,v in monthly_sales.items()}, category_sales=category_sales, product_performance=product_perf)
 
 @app.route('/reports')
 @login_required
@@ -305,72 +181,37 @@ def reports():
 @login_required
 def download_report():
     sales = db.session.execute(db.select(Sales).filter_by(user_id=current_user.id)).scalars().all()
-    
     si = io.StringIO()
     cw = csv.writer(si)
     cw.writerow(['Date', 'Category', 'Product', 'Quantity', 'Unit Price', 'Total Price'])
-    for sale in sales:
-        cw.writerow([sale.date, sale.category, sale.product, sale.quantity, sale.unit_price, sale.total_price])
-        
+    for s in sales: cw.writerow([s.date, s.category, s.product, s.quantity, s.unit_price, s.total_price])
     output = io.BytesIO()
     output.write(si.getvalue().encode('utf-8'))
     output.seek(0)
-    
-    return send_file(output, mimetype="text/csv", as_attachment=True, download_name="sales_report.csv")
-
+    return send_file(output, mimetype="text/csv", as_attachment=True, download_name="report.csv")
 
 @app.route('/api/dashboard-data')
 @login_required
 def dashboard_data_api():
-    sales_data = db.session.execute(
-        db.select(Sales).filter_by(user_id=current_user.id).order_by(Sales.date.asc())
-    ).scalars().all()
-    if not sales_data:
-        return jsonify({'sales_trend': {}, 'category_sales': {}})
-        
+    sales_data = db.session.execute(db.select(Sales).filter_by(user_id=current_user.id).order_by(Sales.date.asc())).scalars().all()
+    if not sales_data: return jsonify({'sales_trend': {}, 'category_sales': {}})
     df = pd.DataFrame([s.to_dict() for s in sales_data])
     df['date'] = pd.to_datetime(df['date'])
-    
-    # Sales Trend (Daily) - Sort by date for proper chart rendering
-    df = df.sort_values('date')
-    daily_sales = df.groupby('date')['total_price'].sum().to_dict()
-    daily_sales = {k.strftime('%Y-%m-%d'): v for k, v in sorted(daily_sales.items())}
-    
-    # Category Sales
+    daily_sales = df.groupby(df['date'].dt.strftime('%Y-%m-%d'))['total_price'].sum().to_dict()
     category_sales = df.groupby('category')['total_price'].sum().to_dict()
-    
-    return jsonify({
-        'sales_trend': daily_sales,
-        'category_sales': category_sales
-    })
+    return jsonify({'sales_trend': daily_sales, 'category_sales': category_sales})
 
 @app.route('/api/analytics-data')
 @login_required
 def analytics_data_api():
     sales_data = db.session.execute(db.select(Sales).filter_by(user_id=current_user.id)).scalars().all()
-    if not sales_data:
-        return jsonify({'monthly_sales': {}, 'category_sales': {}, 'product_performance': {}})
-        
+    if not sales_data: return jsonify({})
     df = pd.DataFrame([s.to_dict() for s in sales_data])
-    
-    # Monthly Sales - Sort chronologically
     df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values('date')
-    monthly_sales = df.groupby(df['date'].dt.to_period('M'))['total_price'].sum().to_dict()
-    # Sort keys before string conversion to ensure chronological order
-    monthly_sales = {str(k): monthly_sales[k] for k in sorted(monthly_sales.keys())}
-    
-    # Category Sales
-    category_sales = df.groupby('category')['total_price'].sum().to_dict()
-    
-    # Top Products
-    product_performance = df.groupby('product')['total_price'].sum().sort_values(ascending=False).head(5).to_dict()
-    
-    return jsonify({
-        'monthly_sales': monthly_sales,
-        'category_sales': category_sales,
-        'product_performance': product_performance
-    })
+    monthly = df.groupby(df['date'].dt.strftime('%Y-%m'))['total_price'].sum().to_dict()
+    cat = df.groupby('category')['total_price'].sum().to_dict()
+    prod = df.groupby('product')['total_price'].sum().to_dict()
+    return jsonify({'monthly_sales': monthly, 'category_sales': cat, 'product_performance': prod})
 
 @app.route('/logout')
 @login_required

@@ -1,20 +1,41 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="auth-wrapper">
+<div class="auth-page animate-in">
     <div class="auth-card">
-        <h2>Login</h2>
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <i class="fas fa-lock fa-3x" style="color: #6366f1; margin-bottom: 1rem;"></i>
+            <h2>Welcome Back</h2>
+            <p style="color: var(--text-secondary);">Sign in to your analytics account</p>
+        </div>
+
         <form method="POST" action="{{ url_for('login') }}">
             <div class="form-group">
-                <label for="email">Email address</label>
-                <input type="email" class="form-control" id="email" name="email" required>
+                <label for="email">Work Email</label>
+                <input type="email" class="form-input" id="email" name="email" placeholder="name@company.com" required>
             </div>
+
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                <div class="input-with-icon">
+                    <input type="password" class="form-input" id="password" name="password" placeholder="••••••••"
+                        required>
+                    <span class="input-icon-toggle" id="togglePassword">
+                        <i class="fas fa-eye"></i>
+                    </span>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary btn-block">Login</button>
-            <p class="mt-3">Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">
+                Sign In
+            </button>
+
+            <div style="text-align: center; margin-top: 1.5rem; font-size: 0.875rem;">
+                <span style="color: var(--text-secondary);">Don't have an account?</span>
+                <a href="{{ url_for('register') }}"
+                    style="color: #6366f1; text-decoration: none; font-weight: 600; margin-left: 0.5rem;">Create
+                    Account</a>
+            </div>
         </form>
     </div>
 </div>

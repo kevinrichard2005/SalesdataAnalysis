@@ -1,91 +1,111 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="dashboard-container">
-    <div class="header">
-        <h1>Dashboard</h1>
-        <p>Overview of your sales performance</p>
+<div class="animate-in">
+    <div class="header-section">
+        <h1>Overview</h1>
+        <p>Real-time insights from your uploaded sales performance data.</p>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="stats-row">
-        <div class="card stat-card blue">
-            <div class="card-content">
-                <p class="card-title">Total Sales</p>
-                <h2 class="card-value">${{ "%.2f"|format(total_sales) }}</h2>
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card blue">
+            <div class="stat-info">
+                <p class="stat-label">Revenue</p>
+                <h2 class="stat-value">₹{{ "{:,.2f}".format(total_sales) }}</h2>
             </div>
-            <div class="card-icon">
-                <i class="fas fa-dollar-sign"></i>
-            </div>
-        </div>
-        <div class="card stat-card green">
-            <div class="card-content">
-                <p class="card-title">Total Orders</p>
-                <h2 class="card-value">{{ total_orders }}</h2>
-            </div>
-            <div class="card-icon">
-                <i class="fas fa-shopping-cart"></i>
+            <div class="stat-icon">
+                <i class="fas fa-indian-rupee-sign"></i>
             </div>
         </div>
-        <div class="card stat-card orange">
-            <div class="card-content">
-                <p class="card-title">Avg Order Value</p>
-                <h2 class="card-value">${{ "%.2f"|format(avg_order_value) }}</h2>
+        <div class="stat-card green">
+            <div class="stat-info">
+                <p class="stat-label">Transactions</p>
+                <h2 class="stat-value">{{ total_orders }}</h2>
             </div>
-            <div class="card-icon">
-                <i class="fas fa-percentage"></i>
-            </div>
-        </div>
-        <div class="card stat-card purple">
-            <div class="card-content">
-                <p class="card-title">Best Product</p>
-                <h2 class="card-value">{{ top_product or 'N/A' }}</h2>
-            </div>
-            <div class="card-icon">
-                <i class="fas fa-trophy"></i>
+            <div class="stat-icon">
+                <i class="fas fa-shopping-bag"></i>
             </div>
         </div>
-    </div>
-
-    <!-- Charts Row -->
-    <div class="charts-row">
-        <div class="chart-container large">
-            <h3>Sales Trend</h3>
-            <div id="salesTrendPlot" class="chart-area"></div>
+        <div class="stat-card orange">
+            <div class="stat-info">
+                <p class="stat-label">Avg. Value</p>
+                <h2 class="stat-value">₹{{ "{:,.2f}".format(avg_order_value) }}</h2>
+            </div>
+            <div class="stat-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
         </div>
-        <div class="chart-container small">
-            <h3>Sales by Category</h3>
-            <div id="categoryPlot" class="chart-area"></div>
+        <div class="stat-card purple">
+            <div class="stat-info">
+                <p class="stat-label">Top Category</p>
+                <h2 class="stat-value">{{ top_product or 'N/A' }}</h2>
+            </div>
+            <div class="stat-icon">
+                <i class="fas fa-crown"></i>
+            </div>
         </div>
     </div>
 
-    <!-- Recent Transactions -->
-    <div class="table-container">
-        <h3>Recent Transactions</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Category</th>
-                    <th>Product</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for sale in sales_data[-10:]|reverse %}
-                <tr>
-                    <td>{{ sale.date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ sale.category }}</td>
-                    <td>{{ sale.product }}</td>
-                    <td>{{ sale.quantity }}</td>
-                    <td>${{ "%.2f"|format(sale.unit_price) }}</td>
-                    <td>${{ "%.2f"|format(sale.total_price) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Charts Layout -->
+    <div class="charts-grid">
+        <div class="chart-box">
+            <h3>Revenue Trend</h3>
+            <div id="salesTrendPlot" style="height: 350px;"></div>
+        </div>
+        <div class="chart-box">
+            <h3>Category Split</h3>
+            <div id="categoryPlot" style="height: 350px;"></div>
+        </div>
+    </div>
+
+    <!-- Recent Data -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3>Recent Activity</h3>
+            <div class="actions">
+                <a href="{{ url_for('upload') }}" class="btn-primary" style="font-size: 0.8rem;"><i
+                        class="fas fa-plus"></i> Import More</a>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if sales_data %}
+                    {% for sale in sales_data[-10:]|reverse %}
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ sale.date.strftime('%d %b, %Y') }}
+                        </td>
+                        <td><span class="badge badge-success">{{ sale.category }}</span></td>
+                        <td>{{ sale.product }}</td>
+                        <td>{{ sale.quantity }}</td>
+                        <td>₹{{ "{:,.2f}".format(sale.unit_price) }}</td>
+                        <td style="color: white; font-weight: 700;">₹{{ "{:,.2f}".format(sale.total_price) }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <i class="fas fa-folder-open fa-3x"
+                                style="display: block; margin-bottom: 1rem; opacity: 0.3;"></i>
+                            No data available. <a href="{{ url_for('upload') }}"
+                                style="color: var(--accent-color);">Upload a CSV</a> to get started.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -96,50 +116,66 @@
         fetch('/api/dashboard-data')
             .then(response => response.json())
             .then(data => {
-                initDashboardPlotly(data);
+                if (data.sales_trend && Object.keys(data.sales_trend).length > 0) {
+                    initDashboardPlotly(data);
+                }
             })
             .catch(error => console.error('Error fetching dashboard data:', error));
     });
 
     function initDashboardPlotly(data) {
-        if (!data.sales_trend || Object.keys(data.sales_trend).length === 0) return;
+        const commonLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { family: 'Inter, sans-serif', color: '#94a3b8' },
+            margin: { t: 10, r: 10, l: 40, b: 40 },
+            showlegend: false
+        };
 
-        // Sales Trend Plot
+        // Revenue Trend
         const trendData = [{
             x: Object.keys(data.sales_trend),
             y: Object.values(data.sales_trend),
             type: 'scatter',
             mode: 'lines+markers',
-            line: { shape: 'spline', color: '#4e73df' },
+            line: { shape: 'spline', color: '#6366f1', width: 4 },
+            marker: { size: 8, color: '#8b5cf6' },
             fill: 'tozeroy',
-            fillcolor: 'rgba(78, 115, 223, 0.1)'
+            fillcolor: 'rgba(99, 102, 241, 0.1)'
         }];
 
         const trendLayout = {
-            margin: { t: 20, r: 20, l: 40, b: 40 },
-            autosize: true,
-            xaxis: { showgrid: false },
-            yaxis: { tickprefix: '$' }
+            ...commonLayout,
+            xaxis: { gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
+            yaxis: { gridcolor: 'rgba(255,255,255,0.05)', zeroline: false, tickprefix: '₹' }
         };
 
         Plotly.newPlot('salesTrendPlot', trendData, trendLayout, { responsive: true, displayModeBar: false });
 
-        // Category Plot
+        // Category Pie
         const catData = [{
             values: Object.values(data.category_sales),
             labels: Object.keys(data.category_sales),
             type: 'pie',
-            hole: .4,
+            hole: 0.6,
             marker: {
-                colors: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
-            }
+                colors: ['#6366f1', '#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6']
+            },
+            textinfo: 'percent',
+            hoverinfo: 'label+value'
         }];
 
         const catLayout = {
-            margin: { t: 20, r: 20, l: 20, b: 20 },
-            autosize: true,
+            ...commonLayout,
+            margin: { t: 0, r: 0, l: 0, b: 0 },
             showlegend: true,
-            legend: { orientation: "h", y: -0.2 }
+            legend: {
+                orientation: "h",
+                y: -0.1,
+                x: 0.5,
+                xanchor: 'center',
+                font: { size: 10 }
+            }
         };
 
         Plotly.newPlot('categoryPlot', catData, catLayout, { responsive: true, displayModeBar: false });

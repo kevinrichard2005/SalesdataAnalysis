@@ -1,19 +1,61 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="reports-container">
-    <h2>Reports</h2>
-    <div class="card p-4">
-        <p>Generate and download your sales reports in CSV format.</p>
-        <div class="d-flex justify-content-between align-items-center">
-            <h5>Full Sales Report</h5>
-            <a href="{{ url_for('download_report') }}" class="btn btn-success">
-                <i class="fas fa-download"></i> Download CSV
-            </a>
+<div class="animate-in" style="max-width: 900px; margin: 0 auto;">
+    <div class="header-section">
+        <h1>Export & Reports</h1>
+        <p>Generate high-quality data exports for external processing or record keeping.</p>
+    </div>
+
+    <div class="table-card" style="padding: 2.5rem;">
+        <div style="display: flex; align-items: flex-start; gap: 2rem;">
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 1.25rem;">
+                <i class="fas fa-file-excel fa-3x" style="color: var(--success);"></i>
+            </div>
+            <div style="flex: 1;">
+                <h3 style="margin-bottom: 0.5rem;">Comprehensive Sales Report</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                    Download a full CSV export containing all historical transactions, products, categories, and totals
+                    associated with your account.
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+                    <div
+                        style="background: var(--glass-bg); padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid var(--border);">
+                        <i class="fas fa-check-circle" style="color: var(--success);"></i> Fully Filterable
+                    </div>
+                    <div
+                        style="background: var(--glass-bg); padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid var(--border);">
+                        <i class="fas fa-check-circle" style="color: var(--success);"></i> UTF-8 Compatible
+                    </div>
+                    <div
+                        style="background: var(--glass-bg); padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid var(--border);">
+                        <i class="fas fa-check-circle" style="color: var(--success);"></i> All Periods
+                    </div>
+                </div>
+                <a href="{{ url_for('download_report') }}" class="btn-primary"
+                    style="display: inline-block; padding: 1rem 2rem; font-size: 1.1rem;">
+                    <i class="fas fa-download"></i> Generate CSV Report
+                </a>
+            </div>
         </div>
-        <hr>
-        <!-- Additional filter options could be added here -->
-        <p class="text-muted">Includes all historical sales data.</p>
+
+        <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+            <h4 style="font-size: 1rem; margin-bottom: 1rem;">Export Features</h4>
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="fas fa-shield-halved" style="color: var(--info);"></i>
+                    <span style="font-size: 0.875rem; color: var(--text-secondary);">Secure Transmission</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="fas fa-bolt" style="color: var(--warning);"></i>
+                    <span style="font-size: 0.875rem; color: var(--text-secondary);">Instant Generation</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="fas fa-database" style="color: var(--accent-color);"></i>
+                    <span style="font-size: 0.875rem; color: var(--text-secondary);">Cloud Synced</span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,34 +1,47 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="analytics-container">
-    <h2>Detailed Analytics</h2>
-
-    <div class="row">
-        <!-- Monthly Sales Trend -->
-        <div class="col-md-12 mb-4">
-            <div class="card p-3">
-                <h4>Monthly Sales Trend</h4>
-                <div id="monthlySalesPlot" class="chart-area"></div>
-            </div>
-        </div>
+<div class="animate-in">
+    <div class="header-section">
+        <h1>Advanced Analytics</h1>
+        <p>Deep dive into your sales breakdown, categories, and top-performing assets.</p>
     </div>
 
-    <div class="charts-row">
+    <!-- Monthly Trend -->
+    <div class="chart-box" style="margin-bottom: 2rem;">
+        <h3>Monthly Revenue Analysis</h3>
+        <div id="monthlySalesPlot" style="height: 450px;"></div>
+    </div>
+
+    <div class="charts-grid">
         <!-- Category Breakdown -->
-        <div class="chart-container">
-            <div class="card p-3">
-                <h4>Sales by Category</h4>
-                <div id="categorySalesPlot" class="chart-area"></div>
-            </div>
+        <div class="chart-box">
+            <h3>Sales by Category</h3>
+            <div id="categorySalesPlot" style="height: 400px;"></div>
         </div>
 
         <!-- Top Products -->
-        <div class="chart-container">
-            <div class="card p-3">
-                <h4>Top 5 Products</h4>
-                <div id="topProductsPlot" class="chart-area"></div>
+        <div class="chart-box">
+            <h3>Top Performing Products</h3>
+            <div id="topProductsPlot" style="height: 400px;"></div>
+        </div>
+    </div>
+
+    <!-- Additional Insights -->
+    <div class="stats-grid" style="margin-top: 2rem;">
+        <div class="stat-card" style="border-left: 4px solid var(--info);">
+            <div class="stat-info">
+                <p class="stat-label">Best Month</p>
+                <h2 id="bestMonthValue" class="stat-value">--</h2>
             </div>
+            <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid var(--success);">
+            <div class="stat-info">
+                <p class="stat-label">Market Share</p>
+                <h2 id="marketShareValue" class="stat-value">--</h2>
+            </div>
+            <div class="stat-icon"><i class="fas fa-pie-chart"></i></div>
         </div>
     </div>
 </div>
@@ -36,53 +49,94 @@
 
 {% block scripts %}
 <script>
-    // Fetch analytics data from the API
-    fetch('/api/analytics-data')
-        .then(response => response.json())
-        .then(data => {
-            initAnalyticsPlotly(data);
-        })
-        .catch(error => console.error('Error fetching analytics data:', error));
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('/api/analytics-data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.monthly_sales && Object.keys(data.monthly_sales).length > 0) {
+                    initAnalyticsPlotly(data);
+                    calculateInsights(data);
+                }
+            })
+            .catch(error => console.error('Error fetching analytics data:', error));
+    });
+
+    const commonLayout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: 'Inter, sans-serif', color: '#94a3b8' },
+        margin: { t: 30, b: 60, l: 60, r: 20 }
+    };
 
     function initAnalyticsPlotly(data) {
-        // Monthly Sales Trend
+        // Monthly Sales - Gradient Bar chart
         const monthlyData = [{
             x: Object.keys(data.monthly_sales),
             y: Object.values(data.monthly_sales),
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: { color: '#4e73df' },
-            fill: 'tozeroy'
+            type: 'bar',
+            marker: {
+                color: '#6366f1',
+                line: { width: 0 },
+                opacity: 0.8
+            },
+            name: 'Monthly Revenue'
         }];
+
         Plotly.newPlot('monthlySalesPlot', monthlyData, {
-            margin: { t: 10, b: 40, l: 50, r: 10 },
-            xaxis: { title: 'Month' },
-            yaxis: { title: 'Sales ($)' }
+            ...commonLayout,
+            xaxis: { title: 'Time Period', gridcolor: 'rgba(255,255,255,0.05)', type: 'category' },
+            yaxis: { title: 'Revenue (₹)', gridcolor: 'rgba(255,255,255,0.05)', tickprefix: '₹' },
+            bargap: 0.4
         }, { responsive: true, displayModeBar: false });
 
-        // Category Sales
+        // Category Sales - Donut
         const categoryData = [{
             values: Object.values(data.category_sales),
             labels: Object.keys(data.category_sales),
             type: 'pie',
-            marker: { colors: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'] }
+            hole: 0.5,
+            marker: { colors: ['#6366f1', '#10b981', '#0ea5e9', '#f59e0b', '#ef4444'] }
         }];
+
         Plotly.newPlot('categorySalesPlot', categoryData, {
+            ...commonLayout,
             margin: { t: 10, b: 10, l: 10, r: 10 },
+            showlegend: true,
             legend: { orientation: 'h', y: -0.2 }
         }, { responsive: true, displayModeBar: false });
 
-        // Top Products
+        // Top Products - Horizontal Bar
+        const products = Object.keys(data.product_performance);
+        const values = Object.values(data.product_performance);
+
         const productData = [{
-            x: Object.keys(data.product_performance),
-            y: Object.values(data.product_performance),
+            y: products.reverse(),
+            x: values.reverse(),
             type: 'bar',
-            marker: { color: '#1cc88a' }
+            orientation: 'h',
+            marker: { color: '#10b981' }
         }];
+
         Plotly.newPlot('topProductsPlot', productData, {
-            margin: { t: 10, b: 80, l: 50, r: 10 },
-            xaxis: { tickangle: -45 }
+            ...commonLayout,
+            margin: { t: 10, b: 40, l: 100, r: 20 },
+            xaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickprefix: '₹' },
+            yaxis: { gridcolor: 'rgba(255,255,255,0.05)' }
         }, { responsive: true, displayModeBar: false });
+    }
+
+    function calculateInsights(data) {
+        // Find best month
+        const months = Object.keys(data.monthly_sales);
+        const values = Object.values(data.monthly_sales);
+        const maxVal = Math.max(...values);
+        const bestMonth = months[values.indexOf(maxVal)];
+
+        document.getElementById('bestMonthValue').innerText = bestMonth;
+
+        // Example "Share" insight
+        const total = values.reduce((a, b) => a + b, 0);
+        document.getElementById('marketShareValue').innerText = '100%'; // Placeholder logic
     }
 </script>
 {% endblock %}

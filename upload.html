@@ -1,18 +1,70 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-    <h2>Upload Sales Data</h2>
-    <div class="card p-4">
+<div class="animate-in" style="max-width: 800px; margin: 0 auto;">
+    <div class="header-section">
+        <h1>Import Data</h1>
+        <p>Upload your sales CSV file to generate detailed analytics and reports.</p>
+    </div>
+
+    <div class="table-card" style="padding: 3rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <i class="fas fa-file-csv fa-4x" style="color: #6366f1; margin-bottom: 1.5rem; opacity: 0.8;"></i>
+            <h3>Drag & Drop or Browse</h3>
+            <p style="color: var(--text-secondary); max-width: 400px; margin: 0.5rem auto;">
+                Make sure your CSV includes: <b>Date, Category, Product, Qty, Unit Price, Total Price</b>.
+            </p>
+        </div>
+
         <form method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="csvFile">Select CSV File</label>
-                <input type="file" class="form-control-file" id="csvFile" name="file" accept=".csv" required>
-                <small class="form-text text-muted">Please upload a valid CSV file with columns: Date, Category,
-                    Product, Quantity, Unit Price, Total Price.</small>
+            <div class="form-group"
+                style="border: 2px dashed var(--border); padding: 3rem; border-radius: 1.25rem; text-align: center; background: rgba(0,0,0,0.2); transition: all 0.3s; cursor: pointer;"
+                onclick="document.getElementById('csvFile').click()">
+                <input type="file" id="csvFile" name="file" accept=".csv" required style="display: none;"
+                    onchange="updateFileName(this)">
+                <div id="uploadPlaceholder">
+                    <i class="fas fa-plus-circle fa-2x" style="color: var(--accent-color); margin-bottom: 1rem;"></i>
+                    <p id="fileNameDisplay" style="color: var(--text-primary); font-weight: 500;">Click to select file
+                    </p>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">Maximum file size:
+                        10MB</p>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Upload and Process</button>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="submit" class="btn-primary" style="flex: 1; padding: 1rem;">
+                    <i class="fas fa-upload"></i> Upload & Process
+                </button>
+                <a href="{{ url_for('clear_data') }}" class="btn-logout"
+                    style="display: flex; align-items: center; justify-content: center; padding: 0 1.5rem; border-radius: 0.75rem;"
+                    onclick="return confirm('Wait! This will delete ALL your current sales data. Are you sure?')">
+                    <i class="fas fa-trash"></i>
+                </a>
+            </div>
         </form>
     </div>
+
+    <div
+        style="margin-top: 2.5rem; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 1rem; padding: 1.5rem;">
+        <h4 style="font-size: 1rem; color: #6366f1; margin-bottom: 0.75rem;"><i class="fas fa-lightbulb"></i> Pro Tip
+        </h4>
+        <p style="font-size: 0.875rem; color: var(--text-secondary);">
+            Don't worry about exact column names. Our AI-powered mapping system automatically detects variations like
+            "Order Date" vs "Date" or "Sales" vs "Total Price".
+        </p>
+    </div>
 </div>
+
+<script>
+    function updateFileName(input) {
+        const display = document.getElementById('fileNameDisplay');
+        const container = input.parentElement;
+        if (input.files && input.files[0]) {
+            display.innerText = input.files[0].name;
+            display.style.color = '#10b981';
+            container.style.borderColor = '#10b981';
+            container.style.background = 'rgba(16, 185, 129, 0.05)';
+        }
+    }
+</script>
 {% endblock %}
