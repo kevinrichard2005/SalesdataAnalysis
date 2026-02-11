@@ -17,14 +17,15 @@
     <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
 
-    <!-- CSS Fallback: Try static first, then root -->
+    <!-- CSS Fallback -->
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/style.css">
 </head>
 
-<body>
+<body class="{{ 'auth-bg' if not current_user.is_authenticated else '' }}">
     <div class="wrapper">
-        <!-- Sidebar -->
+        <!-- Sidebar: Only show if authenticated -->
+        {% if current_user.is_authenticated %}
         <nav id="sidebar">
             <div class="sidebar-header">
                 <i class="fas fa-chart-pie fa-2x" style="color: #6366f1;"></i>
@@ -45,14 +46,15 @@
                 </li>
             </ul>
         </nav>
+        {% endif %}
 
         <!-- Page Content -->
-        <div id="content">
+        <div id="content" style="{{ 'margin-left: 0; width: 100%;' if not current_user.is_authenticated else '' }}">
+            {% if current_user.is_authenticated %}
             <nav class="navbar">
                 <div class="container-fluid">
                     <span class="navbar-brand">Analytics Dashboard</span>
                     <div class="user-menu">
-                        {% if current_user.is_authenticated %}
                         <div class="user-info">
                             <span class="welcome">Welcome,</span>
                             <span class="username" style="color: var(--text-primary); font-weight: 600;">{{
@@ -60,13 +62,13 @@
                         </div>
                         <a href="{{ url_for('logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt"></i>
                             Logout</a>
-                        {% endif %}
                         <button type="button" id="sidebarCollapse">
                             <i class="fas fa-bars"></i>
                         </button>
                     </div>
                 </div>
             </nav>
+            {% endif %}
 
             <div class="flash-container">
                 {% with messages = get_flashed_messages(with_categories=true) %}

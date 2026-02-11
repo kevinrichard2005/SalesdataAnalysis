@@ -271,13 +271,34 @@ td {
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
+.auth-bg {
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.05) 0%, transparent 40%),
+        #f8fafc;
+}
+
 .auth-page {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
+    min-height: calc(100vh - 4rem);
     padding: 2rem;
-    background: #f8fafc;
+}
+
+.animate-in {
+    animation: fadeInScale 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.98) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 .auth-card {
