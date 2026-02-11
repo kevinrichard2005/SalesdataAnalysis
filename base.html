@@ -49,7 +49,7 @@
         {% endif %}
 
         <!-- Page Content -->
-        <div id="content" style="{{ 'margin-left: 0; width: 100%;' if not current_user.is_authenticated else '' }}">
+        <div id="content" class="{{ 'full-width' if not current_user.is_authenticated else '' }}">
             {% if current_user.is_authenticated %}
             <nav class="navbar">
                 <div class="container-fluid">
@@ -84,7 +84,7 @@
                 {% endwith %}
             </div>
 
-            <main class="main-content">
+            <main class="{{ 'main-content' if current_user.is_authenticated else '' }}">
                 {% block content %}{% endblock %}
             </main>
         </div>
