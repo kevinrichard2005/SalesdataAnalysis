@@ -18,13 +18,20 @@ logger = logging.getLogger(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__, 
-            template_folder='templates',
+            template_folder=os.path.join(basedir, 'templates'),
             static_folder=os.path.join(basedir, 'static'))
 
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(os.path.join(basedir, 'static'),
-                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    fa_path = os.path.join(app.static_folder, 'favicon.ico')
+    if not os.path.exists(fa_path):
+        # Return a 204 No Content if it doesn't exist to avoid 404 in logs
+        return '', 204
+    return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('base.html'), 404
 
 # Use environment variable for Secret Key on Render, fallback for local development
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_12345')
@@ -144,7 +151,9 @@ def dashboard():
     except Exception as e:
         logger.error(f"Dashboard Error: {str(e)}")
         flash(f"An error occurred while loading the dashboard: {str(e)}", "danger")
-        return redirect(url_for('home'))
+        if current_user.is_authenticated:
+            return render_template('base.html') # Fallback to base or show error
+        return redirect(url_for('login'))
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
@@ -276,7 +285,7 @@ def reports():
 @app.route('/download_report')
 @login_required
 def download_report():
-    sales = Sales.query.filter_by(user_id=current_user.id).all()
+    sales = db.session.execute(db.select(Sales).filter_by(user_id=current_user.id)).scalars().all()
     
     si = io.StringIO()
     cw = csv.writer(si)
@@ -294,7 +303,9 @@ def download_report():
 @app.route('/api/dashboard-data')
 @login_required
 def dashboard_data_api():
-    sales_data = Sales.query.filter_by(user_id=current_user.id).order_by(Sales.date.asc()).all()
+    sales_data = db.session.execute(
+        db.select(Sales).filter_by(user_id=current_user.id).order_by(Sales.date.asc())
+    ).scalars().all()
     if not sales_data:
         return jsonify({'sales_trend': {}, 'category_sales': {}})
         
@@ -317,7 +328,7 @@ def dashboard_data_api():
 @app.route('/api/analytics-data')
 @login_required
 def analytics_data_api():
-    sales_data = Sales.query.filter_by(user_id=current_user.id).all()
+    sales_data = db.session.execute(db.select(Sales).filter_by(user_id=current_user.id)).scalars().all()
     if not sales_data:
         return jsonify({'monthly_sales': {}, 'category_sales': {}, 'product_performance': {}})
         
