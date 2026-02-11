@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, send_from_directory
+import jinja2
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 import os
@@ -15,11 +16,29 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Ensure absolute path for better environment compatibility
-basedir = os.path.abspath(os.path.dirname(__file__))
+basedir = os.path.abspath(os.path.dirname(__file__)) # Keep this line as it defines 'basedir'
 
-app = Flask(__name__, 
-            template_folder=os.path.join(basedir, 'templates'),
-            static_folder=os.path.join(basedir, 'static'))
+app = Flask(__name__)
+
+# Fallback mechanism to ensure templates are found even if misconfigured in Git
+app.jinja_loader = jinja2.ChoiceLoader([
+    jinja2.FileSystemLoader(os.path.join(basedir, 'templates')),
+    jinja2.FileSystemLoader(basedir),
+])
+
+# LOGGING FOR DIAGNOSTICS (Check Render Logs)
+logger.info(f"--- RENDER DIAGNOSTICS ---")
+logger.info(f"Current Working Directory: {os.getcwd()}")
+logger.info(f"Base Directory: {basedir}")
+try:
+    logger.info(f"Files in root: {os.listdir(basedir)}")
+    if os.path.exists(os.path.join(basedir, 'templates')):
+        logger.info(f"Files in templates/: {os.listdir(os.path.join(basedir, 'templates'))}")
+    else:
+        logger.warning("WARNING: 'templates' folder not found in root.")
+except Exception as e:
+    logger.error(f"Error during diagnostics: {e}")
+logger.info(f"--- END DIAGNOSTICS ---")
 
 @app.route('/favicon.ico')
 def favicon():
