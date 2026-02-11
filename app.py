@@ -18,21 +18,13 @@ logger = logging.getLogger(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__, 
-            template_folder=basedir,
+            template_folder='templates',
             static_folder=os.path.join(basedir, 'static'))
 
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(basedir,
+    return send_from_directory(os.path.join(basedir, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
-@app.route('/style.css')
-def style_css():
-    return send_from_directory(basedir, 'style.css')
-
-@app.route('/main.js')
-def main_js():
-    return send_from_directory(basedir, 'main.js')
 
 # Use environment variable for Secret Key on Render, fallback for local development
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key_12345')
@@ -78,6 +70,8 @@ def home():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -91,15 +85,23 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
         
-        # Check if user already exists
+        # Check if email already exists
         user = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
         if user:
             flash('Email already registered', 'warning')
+            return redirect(url_for('register'))
+        
+        # Check if username already exists
+        user_by_name = db.session.execute(db.select(User).filter_by(username=username)).scalar_one_or_none()
+        if user_by_name:
+            flash('Username already taken', 'warning')
             return redirect(url_for('register'))
 
         new_user = User(username=username, email=email)
@@ -162,15 +164,17 @@ def upload():
             
             try:
                 df = pd.read_csv(filepath)
+                # Strip leading/trailing spaces from column names
+                df.columns = df.columns.str.strip()
                 
                 # Column mapping for flexibility
                 column_mapping = {
-                    'Date': ['Date', 'date', 'order_date'],
+                    'Date': ['Date', 'date', 'order_date', 'Order Date'],
                     'Category': ['Category', 'category', 'Product Category'],
-                    'Product': ['Product', 'product', 'item'],
+                    'Product': ['Product', 'product', 'item', 'Item Name'],
                     'Quantity': ['Quantity', 'quantity', 'Qty', 'qty'],
-                    'Unit Price': ['Unit Price', 'unit_price', 'Unit_Price', 'price'],
-                    'Total Price': ['Total Price', 'total_price', 'Total_Sales', 'total_sales', 'sales', 'Sales']
+                    'Unit Price': ['Unit Price', 'unit_price', 'Unit_Price', 'price', 'Price'],
+                    'Total Price': ['Total Price', 'total_price', 'Total_Sales', 'total_sales', 'sales', 'Sales', 'Total Sales']
                 }
 
                 parsed_df = pd.DataFrame()
@@ -183,13 +187,18 @@ def upload():
                     if found_col:
                         parsed_df[standard_name] = df[found_col]
                     else:
-                        flash(f'CSV missing required column: {standard_name} (or its common variations)', 'danger')
+                        flash(f'CSV missing required column: {standard_name} (found columns: {", ".join(df.columns)})', 'danger')
                         return redirect(request.url)
+
+                # Clear existing data for the current user before adding new data
+                db.session.execute(db.delete(Sales).filter_by(user_id=current_user.id))
 
                 for _, row in parsed_df.iterrows():
                     try:
-                        # Handle potential date format issues
-                        sale_date = pd.to_datetime(row['Date']).date()
+                        # Handle potential date format issues - use dayfirst=True for flexibility
+                        sale_date = pd.to_datetime(row['Date'], dayfirst=True, errors='coerce').date()
+                        if pd.isna(sale_date):
+                            continue
                         sale = Sales(
                             date=sale_date,
                             category=row['Category'],
@@ -208,9 +217,22 @@ def upload():
                 flash('File uploaded and processed successfully!', 'success')
                 return redirect(url_for('dashboard'))
             except Exception as e:
+                db.session.rollback()
                 flash(f'Error processing file: {str(e)}', 'danger')
                 return redirect(request.url)
     return render_template('upload.html')
+
+@app.route('/clear-data')
+@login_required
+def clear_data():
+    try:
+        db.session.execute(db.delete(Sales).filter_by(user_id=current_user.id))
+        db.session.commit()
+        flash('All sales data has been cleared.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error clearing data: {str(e)}', 'danger')
+    return redirect(url_for('upload'))
 
 @app.route('/analytics')
 @login_required
@@ -279,9 +301,10 @@ def dashboard_data_api():
     df = pd.DataFrame([s.to_dict() for s in sales_data])
     df['date'] = pd.to_datetime(df['date'])
     
-    # Sales Trend (Daily)
+    # Sales Trend (Daily) - Sort by date for proper chart rendering
+    df = df.sort_values('date')
     daily_sales = df.groupby('date')['total_price'].sum().to_dict()
-    daily_sales = {k.strftime('%Y-%m-%d'): v for k, v in daily_sales.items()}
+    daily_sales = {k.strftime('%Y-%m-%d'): v for k, v in sorted(daily_sales.items())}
     
     # Category Sales
     category_sales = df.groupby('category')['total_price'].sum().to_dict()
@@ -300,10 +323,12 @@ def analytics_data_api():
         
     df = pd.DataFrame([s.to_dict() for s in sales_data])
     
-    # Monthly Sales
+    # Monthly Sales - Sort chronologically
     df['date'] = pd.to_datetime(df['date'])
+    df = df.sort_values('date')
     monthly_sales = df.groupby(df['date'].dt.to_period('M'))['total_price'].sum().to_dict()
-    monthly_sales = {str(k): v for k, v in monthly_sales.items()}
+    # Sort keys before string conversion to ensure chronological order
+    monthly_sales = {str(k): monthly_sales[k] for k in sorted(monthly_sales.keys())}
     
     # Category Sales
     category_sales = df.groupby('category')['total_price'].sum().to_dict()
