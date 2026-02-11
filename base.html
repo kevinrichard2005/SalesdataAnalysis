@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SalesFlow | Advanced Analytics</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,8 +16,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- CSS Fallback: Try static first, then root -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
@@ -48,26 +50,20 @@
         <div id="content">
             <nav class="navbar">
                 <div class="container-fluid">
-                    <button type="button" id="sidebarCollapse">
-                        <i class="fas fa-bars"></i>
-                    </button>
                     <span class="navbar-brand">Analytics Dashboard</span>
                     <div class="user-menu">
                         {% if current_user.is_authenticated %}
                         <div class="user-info">
                             <span class="welcome">Welcome,</span>
                             <span class="username" style="color: var(--text-primary); font-weight: 600;">{{
-                                current_user.username
-                                }}</span>
+                                current_user.username }}</span>
                         </div>
                         <a href="{{ url_for('logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt"></i>
                             Logout</a>
-                        {% else %}
-                        <a href="{{ url_for('login') }}"
-                            style="color: white; text-decoration: none; font-weight: 600;">Login</a>
-                        <a href="{{ url_for('register') }}" class="btn-primary" style="padding: 0.5rem 1.25rem;">Join
-                            Free</a>
                         {% endif %}
+                        <button type="button" id="sidebarCollapse">
+                            <i class="fas fa-bars"></i>
+                        </button>
                     </div>
                 </div>
             </nav>
@@ -93,8 +89,9 @@
         <div class="overlay"></div>
     </div>
 
-    <!-- Custom JS -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- JS Fallback -->
+    <script src="/static/js/main.js"></script>
+    <script src="/main.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 

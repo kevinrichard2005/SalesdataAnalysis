@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Base directory
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Initialize Flask with templates in root and static in 'static'
+# Initialize Flask with templates in root and static folder support
 app = Flask(__name__, 
             template_folder='.',
             static_folder='static')
@@ -32,7 +32,7 @@ database_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedi
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static', 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'csv'}
 
 # Ensure upload directory exists
@@ -51,9 +51,20 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+# CUSTOM ROUTES TO SERVE CSS/JS FROM ROOT (FOR RENDER DEPLOYMENT)
+@app.route('/style.css')
+def serve_root_css():
+    return send_from_directory(basedir, 'style.css', mimetype='text/css')
+
+@app.route('/main.js')
+def serve_root_js():
+    return send_from_directory(basedir, 'main.js', mimetype='application/javascript')
+
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    if os.path.exists(os.path.join(basedir, 'static', 'favicon.ico')):
+        return send_from_directory(os.path.join(basedir, 'static'), 'favicon.ico')
+    return '', 204
 
 @app.route('/')
 def home():
@@ -135,10 +146,6 @@ def upload():
         try:
             df = pd.read_csv(filepath)
             df.columns = df.columns.str.strip()
-            
-            # Simple column mapping
-            col_map = {'Date': 'Date', 'Category': 'Category', 'Product': 'Product', 'Quantity': 'Quantity', 'Unit Price': 'Unit Price', 'Total Price': 'Total Price'}
-            
             db.session.execute(db.delete(Sales).filter_by(user_id=current_user.id))
             for _, row in df.iterrows():
                 try:
