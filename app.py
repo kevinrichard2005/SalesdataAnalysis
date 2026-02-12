@@ -19,12 +19,7 @@ logger = logging.getLogger(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Initialize Flask
-app = Flask(__name__, 
-            template_folder='.',
-            static_folder='static')
-
-# Force Jinja to look in the root folder
-app.jinja_loader = jinja2.FileSystemLoader(basedir)
+app = Flask(__name__)
 
 # App Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'premium_secret_key_888')
@@ -49,14 +44,6 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# FALLBACK ROUTES FOR CSS/JS
-@app.route('/style.css')
-def serve_root_css():
-    return send_from_directory(basedir, 'style.css', mimetype='text/css')
-
-@app.route('/main.js')
-def serve_root_js():
-    return send_from_directory(basedir, 'main.js', mimetype='application/javascript')
 
 @app.route('/favicon.ico')
 def favicon():
@@ -176,8 +163,12 @@ def upload():
                     if total_val == 0 and unit_val > 0:
                         total_val = unit_val * qty_val
 
+                    parsed_date = pd.to_datetime(row.get(date_col), errors='coerce')
+                    if pd.isna(parsed_date):
+                        parsed_date = datetime.now()
+                    
                     sale = Sales(
-                        date=pd.to_datetime(row.get(date_col, datetime.now()), errors='coerce').date(),
+                        date=parsed_date.date(),
                         category=str(row.get(cat_col, 'General')),
                         product=str(row.get(prod_col, 'Unknown Item')),
                         quantity=qty_val,
@@ -269,4 +260,4 @@ with app.app_context():
     db.create_all()
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
