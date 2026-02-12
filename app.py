@@ -18,24 +18,33 @@ logger = logging.getLogger(__name__)
 # Base directory
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Initialize Flask
-app = Flask(__name__)
+# Initialize Flask with absolute paths for templates and static files
+# This fixes the TemplateNotFound error on Render/Linux environments
+app = Flask(__name__,
+            template_folder=os.path.join(basedir, 'templates'),
+            static_folder=os.path.join(basedir, 'static'))
 
 # App Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'premium_secret_key_888')
+
+# Database Configuration with PostgreSQL compatibility for Render
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'site.db'))
-if database_url.startswith("postgres://"):
+if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static', 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'csv'}
 
+# Ensure folders exist
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+login_manager.login_message_category = 'info'
 
 @login_manager.user_loader
 def load_user(user_id):
