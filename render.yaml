@@ -2,10 +2,14 @@ services:
   - type: web
     name: sales-analytics-app
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
-        value: "3.13"
+        value: "3.11.0"
+      - key: FLASK_ENV
+        value: production
