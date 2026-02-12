@@ -19,6 +19,17 @@ logger = logging.getLogger(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Initialize Flask
+# Diagnostic logging to debug Render path issues
+logger.info(f"Current Working Directory: {os.getcwd()}")
+logger.info(f"Base Directory: {basedir}")
+logger.info(f"Directory Contents: {os.listdir(os.getcwd())}")
+
+template_path = os.path.join(basedir, 'templates')
+if os.path.exists(template_path):
+     logger.info(f"Templates found at {template_path}: {os.listdir(template_path)}")
+else:
+     logger.error(f"Templates NOT found at {template_path}")
+
 app = Flask(__name__)
 
 # App Configuration
