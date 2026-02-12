@@ -21,23 +21,29 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Password Toggle Logic
-    const togglePassword = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('password');
-
-    if (togglePassword && passwordInput) {
-        togglePassword.addEventListener('click', function () {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-
-            // Toggle icon
-            const icon = this.querySelector('i');
-            if (icon) {
-                icon.classList.toggle('fa-eye');
-                icon.classList.toggle('fa-eye-slash');
+    // FIXED: Password Toggle Logic - Works for both login and register pages
+    const togglePasswordButtons = document.querySelectorAll('.input-icon-toggle');
+    
+    togglePasswordButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Find the closest parent with input-with-icon class, then find the input
+            const container = this.closest('.input-with-icon');
+            if (container) {
+                const passwordInput = container.querySelector('input[type="password"], input[type="text"]');
+                if (passwordInput) {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    
+                    // Toggle icon
+                    const icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-eye');
+                        icon.classList.toggle('fa-eye-slash');
+                    }
+                }
             }
         });
-    }
+    });
 
     // Form submission loading states
     const forms = document.querySelectorAll('form');
@@ -49,6 +55,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             }
         });
+    });
+
+    // Auto-dismiss alerts after 5 seconds
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            alert.style.transform = 'translateY(-20px)';
+            alert.style.transition = '0.5s';
+            setTimeout(() => alert.remove(), 500);
+        }, 5000);
     });
 
     // Animate entries on scroll
