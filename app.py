@@ -18,11 +18,8 @@ logger = logging.getLogger(__name__)
 # Base directory
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Initialize Flask with absolute paths for templates and static files
-# This fixes the TemplateNotFound error on Render/Linux environments
-app = Flask(__name__,
-            template_folder=os.path.join(basedir, 'templates'),
-            static_folder=os.path.join(basedir, 'static'))
+# Initialize Flask
+app = Flask(__name__)
 
 # App Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'premium_secret_key_888')
